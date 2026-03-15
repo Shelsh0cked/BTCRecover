@@ -35,105 +35,106 @@ prog = os.path.basename(sys.argv[0])
 
 if len(sys.argv) < 2:
     atexit.register(lambda: input("\nPress Enter to exit ..."))
-    filename = "wallet.aes.json"
-elif len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
-    filename = sys.argv[1]
-else:
-    print("usage:", prog, "[NEW_BLOCKCHAIN_WALLET_FILE]", file=sys.stderr)
-    sys.exit(2)
+        filename = "wallet.aes.json"
+        elif len(sys.argv) == 2 and not sys.argv[1].startswith("-"):
+            filename = sys.argv[1]
+            else:
+                print("usage:", prog, "[NEW_BLOCKCHAIN_WALLET_FILE]", file=sys.stderr)
+                    sys.exit(2)
 
-# Refuse to overwrite an existing file
-assert not os.path.exists(filename), filename + " already exists, won't overwrite"
+                    # Refuse to overwrite an existing file
+                    assert not os.path.exists(filename), filename + " already exists, won't overwrite"
 
-print("Please enter your wallet's ID (e.g. 9bb4c672-563e-4806-9012-a3e8f86a0eca)")
-wallet_id = str(uuid.UUID(input("> ").strip()))
-
-
-# Performs a web request, adding the api_code and (if available) auth_token
-auth_token = None
-def do_request(query, body = None):
-    if body is None:
-        assert "?" in query
-        query += "&api_code=" + API_CODE
-    req = urllib.request.Request(BASE_URL + query)
-    if body is not None:
-        req.data = ((body+"&" if body else "") + "api_code=" + API_CODE).encode()
-    if auth_token:
-        req.add_header("authorization", "Bearer " + auth_token)
-    try:
-        return urllib.request.urlopen(req, context=ctx)  # fixed because otherwise SSL errors abound
-    except TypeError:
-        return urllib.request.urlopen(req, context=ctx)
-#
-# Performs a do_request(), decoding the result as json
-def do_request_json(query, body = None):
-    return json.load(do_request(query, body))
+                    print("Please enter your wallet's ID (e.g. 9bb4c672-563e-4806-9012-a3e8f86a0eca)")
+                    wallet_id = str(uuid.UUID(input("> ").strip()))
 
 
-# Get an auth_token
-try:
-    auth_token = do_request_json("sessions", "")["token"]  # a POST request
-except urllib.error.HTTPError:
-    # This tool worked with the old blockchain.info domain for some time, then needed to swtich the base url to
-    # login.blockchain.com
-    # A recent (28th Jan 2021) change broke this, though the tool still works as normal with the old domain.
-    # (Interestingly, logins via the official website were failing over to blockchain.info as well...)
-    print("Download from login.blockchain.com failed, attempting via blockchain.info")
-    BASE_URL = "https://blockchain.info/"
-    auth_token = do_request_json("sessions", "")["token"]  # a POST request
+                    # Performs a web request, adding the api_code and (if available) auth_token
+                    auth_token = None
+                    def do_request(query, body = None):
+                        if body is None:
+                                assert "?" in query
+                                        query += "&api_code=" + API_CODE
+                                            req = urllib.request.Request(BASE_URL + query)
+                                                if body is not None:
+                                                        req.data = ((body+"&" if body else "") + "api_code=" + API_CODE).encode()
+                                                            if auth_token:
+                                                                    req.add_header("authorization", "Bearer " + auth_token)
+                                                                        try:
+                                                                                return urllib.request.urlopen(req, context=ctx)  # fixed because otherwise SSL errors abound
+                                                                                    except TypeError:
+                                                                                            return urllib.request.urlopen(req, context=ctx)
+                                                                                            #
+                                                                                            # Performs a do_request(), decoding the result as json
+                                                                                            def do_request_json(query, body = None):
+                                                                                                return json.load(do_request(query, body))
 
-# Try to download the wallet
-try:
-    wallet_data = do_request_json(
-        "wallet/{}?format=json".format(wallet_id)
-    ).get("payload")
 
-# If IP address / email verification is required
-except urllib.error.HTTPError as e:
-    error_msg = e.read()
-    try:
-        error_msg = json.loads(error_msg)["initial_error"]
-    except: pass
-    print(error_msg)
-    if error_msg.lower().startswith("unknown wallet identifier"):
-        sys.exit(1)
+                                                                                                # Get an auth_token
+                                                                                                try:
+                                                                                                    auth_token = do_request_json("sessions", "")["token"]  # a POST request
+                                                                                                    except urllib.error.HTTPError:
+                                                                                                        # This tool worked with the old blockchain.info domain for some time, then needed to swtich the base url to
+                                                                                                            # login.blockchain.com
+                                                                                                                # A recent (28th Jan 2021) change broke this, though the tool still works as normal with the old domain.
+                                                                                                                    # (Interestingly, logins via the official website were failing over to blockchain.info as well...)
+                                                                                                                        print("Download from login.blockchain.com failed, attempting via blockchain.info")
+                                                                                                                            BASE_URL = "https://blockchain.info/"
+                                                                                                                                auth_token = do_request_json("sessions", "")["token"]  # a POST request
 
-    # Wait for the user to complete the requested authorization
-    time.sleep(5)
-    print("Waiting for authorization (press Ctrl-C to give up)...")
-    while True:
-        poll_data = do_request_json("wallet/poll-for-session-guid?format=json")
-        if "guid" in poll_data:
-            break
-        time.sleep(5)
-    print()
+                                                                                                                                # Try to download the wallet
+                                                                                                                                try:
+                                                                                                                                    wallet_data = do_request_json(
+                                                                                                                                            "wallet/{}?format=json".format(wallet_id)
+                                                                                                                                                ).get("payload")
 
-    # Try again to download the wallet (this shouldn't fail)
-    wallet_data = do_request_json(
-        "wallet/{}?format=json".format(wallet_id)
-    ).get("payload")
+                                                                                                                                                # If IP address / email verification is required
+                                                                                                                                                except urllib.error.HTTPError as e:
+                                                                                                                                                    error_msg = e.read()
+                                                                                                                                                        try:
+                                                                                                                                                                error_msg = json.loads(error_msg)["initial_error"]
+                                                                                                                                                                    except: pass
+                                                                                                                                                                        print(error_msg)
+                                                                                                                                                                            if error_msg.lower().startswith("unknown wallet identifier"):
+                                                                                                                                                                                    sys.exit(1)
 
-# If there was no payload data, then 2FA is enabled
-while not wallet_data:
+                                                                                                                                                                                        # Wait for the user to complete the requested authorization
+                                                                                                                                                                                            time.sleep(5)
+                                                                                                                                                                                                print("Waiting for authorization (press Ctrl-C to give up)...")
+                                                                                                                                                                                                    while True:
+                                                                                                                                                                                                            poll_data = do_request_json("wallet/poll-for-session-guid?format=json")
+                                                                                                                                                                                                                    if "guid" in poll_data:
+                                                                                                                                                                                                                                break
+                                                                                                                                                                                                                                        time.sleep(5)
+                                                                                                                                                                                                                                            print()
 
-    print("This wallet has two-factor authentication enabled, please enter your 2FA code")
-    two_factor = input("> ").strip()
+                                                                                                                                                                                                                                                # Try again to download the wallet (this shouldn't fail)
+                                                                                                                                                                                                                                                    wallet_data = do_request_json(
+                                                                                                                                                                                                                                                            "wallet/{}?format=json".format(wallet_id)
+                                                                                                                                                                                                                                                                ).get("payload")
 
-    try:
-        # Send the 2FA to the server and download the wallet
-        wallet_data = do_request("wallet",
-            "method=get-wallet&guid={}&payload={}&length={}"
-            .format(wallet_id, two_factor, len(two_factor))
-        ).read()
+                                                                                                                                                                                                                                                                # If there was no payload data, then 2FA is enabled
+                                                                                                                                                                                                                                                                while not wallet_data:
 
-    except urllib.error.HTTPError as e:
-        print(e.read() + "\n", file=sys.stderr)
+                                                                                                                                                                                                                                                                    print("This wallet has two-factor authentication enabled, please enter your 2FA code")
+                                                                                                                                                                                                                                                                        two_factor = input("> ").strip()
 
-# Save the wallet
-with open(filename, "wb") as wallet_file:
-    if isinstance(wallet_data,str):
-        wallet_file.write(wallet_data.encode())
-    else:
-        wallet_file.write(wallet_data)
+                                                                                                                                                                                                                                                                            try:
+                                                                                                                                                                                                                                                                                    # Send the 2FA to the server and download the wallet
+                                                                                                                                                                                                                                                                                            wallet_data = do_request("wallet",
+                                                                                                                                                                                                                                                                                                        "method=get-wallet&guid={}&payload={}&length={}"
+                                                                                                                                                                                                                                                                                                                    .format(wallet_id, two_factor, len(two_factor))
+                                                                                                                                                                                                                                                                                                                            ).read()
 
-print("Wallet file saved as " + filename)
+                                                                                                                                                                                                                                                                                                                                except urllib.error.HTTPError as e:
+                                                                                                                                                                                                                                                                                                                                        print(e.read() + "\n", file=sys.stderr)
+
+                                                                                                                                                                                                                                                                                                                                        # Save the wallet
+                                                                                                                                                                                                                                                                                                                                        with open(filename, "wb") as wallet_file:
+                                                                                                                                                                                                                                                                                                                                            if isinstance(wallet_data,str):
+                                                                                                                                                                                                                                                                                                                                                    wallet_file.write(wallet_data.encode())
+                                                                                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                                                                                                wallet_file.write(wallet_data)
+
+                                                                                                                                                                                                                                                                                                                                                                print("Wallet file saved as " + filename)
+                                                                                                                                                                                                                                                                                                                                                    
